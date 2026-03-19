@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:17
+    container_name: postgres_auth_app
+    environment:
+      POSTGRES_USER: auth_api_user
+      POSTGRES_PASSWORD: auth_api_passwd
+      POSTGRES_DB: auth_api_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - auth_api_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  auth_api_data:
