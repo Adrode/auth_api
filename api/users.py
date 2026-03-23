@@ -9,7 +9,7 @@ router = APIRouter()
 
 session_dependency = Annotated[Session, Depends(get_db)]
 
-@router.post("/")
+@router.post("/", response_model=schemas.User)
 def register(
   data: schemas.CreateUser,
   db: session_dependency
@@ -30,7 +30,7 @@ def register(
       detail="Bad request"
     )
 
-@router.get("/")
+@router.get("/", response_model=list[schemas.User])
 def get_users(db: session_dependency):
   users = db.query(models.User).all()
 
