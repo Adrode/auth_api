@@ -10,7 +10,7 @@ router = APIRouter()
 
 session_dependency = Annotated[Session, Depends(get_db)]
 
-@router.post("/register", response_model=schemas.User)
+@router.post('/register', response_model=schemas.User)
 def register(
   data: schemas.CreateUser,
   db: session_dependency
@@ -31,7 +31,7 @@ def register(
       detail="Bad request"
     )
   
-@router.post("/login")
+@router.post('/login')
 def login(
   db: session_dependency,
   form_data: OAuth2PasswordRequestForm = Depends()
@@ -44,16 +44,20 @@ def login(
       detail='Not found'
     )
   
-  token = auth.create_access_token(data={'sub': user.id})
-  return {'token': token, 'type': 'bearer'}
+  token = auth.create_access_token(data={'sub': user.email})
+  return {'access_token': token, 'token_type': 'bearer'}
 
-@router.get("/", response_model=list[schemas.User])
-def get_users(db: session_dependency):
-  users = db.query(models.User).all()
+# @router.get("/", response_model=list[schemas.User])
+# def get_users(db: session_dependency):
+#   users = db.query(models.User).all()
 
-  if not users:
-    raise HTTPException(
-      status_code=400
-    )
+#   if not users:
+#     raise HTTPException(
+#       status_code=400
+#     )
   
-  return users 
+#   return users 
+
+@router.get('/me', response_model=schemas.User)
+def get_me(current_user: models.User = Depends(auth.get_current_user)):
+  return current_user
