@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from typing import Annotated
@@ -9,11 +10,11 @@ router = APIRouter()
 
 session_dependency = Annotated[Session, Depends(get_db)]
 
-@router.post("/", response_model=schemas.User)
+@router.post("/register", response_model=schemas.User)
 def register(
   data: schemas.CreateUser,
   db: session_dependency
-  ):
+):
   try:
     user = models.User(
       email=data.email,
@@ -29,6 +30,22 @@ def register(
       status_code=400,
       detail="Bad request"
     )
+  
+@router.post("/login")
+def login(
+  db: session_dependency,
+  form_data: OAuth2PasswordRequestForm = Depends()
+):
+  user = db.query(models.User).where(models.User.email == form_data.username).first()
+
+  if not user or not auth.verify_password(form_data.password, user.hashed_password):
+    raise HTTPException(
+      status_code=404,
+      detail='Not found'
+    )
+  
+  token = auth.create_access_token(data={'sub': user.id})
+  return {'token': token, 'type': 'bearer'}
 
 @router.get("/", response_model=list[schemas.User])
 def get_users(db: session_dependency):
