@@ -6,8 +6,8 @@ from sqlalchemy.orm import Session
 from passlib.context import CryptContext
 from jose import jwt, JWTError
 from datetime import datetime, timedelta
-from database import get_db
-import models
+from database.database import get_db
+from database import models
 
 load_dotenv()
 SECRET_KEY = os.getenv('SECRET_KEY')
@@ -17,7 +17,7 @@ TIME_TO_EXPIRE = 15
 
 pwd_context = CryptContext(schemes=['bcrypt'])
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl='users/login')
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl='auth/login')
 
 print("schemes: ", pwd_context.schemes())
 print("default scheme: ", pwd_context.default_scheme())
