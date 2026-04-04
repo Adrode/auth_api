@@ -33,7 +33,7 @@ def register(
       detail="Bad request"
     )
   
-@router.post('/login')
+@router.post('/login', response_model=schemas.Token)
 def login(
   db: session_dependency,
   form_data: OAuth2PasswordRequestForm = Depends()
