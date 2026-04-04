@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from typing import Annotated
 from database import models
-from authentication import auth
+from authentication import short
 from schemas import schemas
 from database.database import get_db
 
@@ -20,7 +20,7 @@ def register(
   try:
     user = models.User(
       email=data.email,
-      hashed_password=auth.hash_password(data.password)
+      hashed_password=short.hash_password(data.password)
     )
 
     db.add(user)
@@ -40,11 +40,11 @@ def login(
 ):
   user = db.query(models.User).where(models.User.email == form_data.username).first()
 
-  if not user or not auth.verify_password(form_data.password, user.hashed_password):
+  if not user or not short.verify_password(form_data.password, user.hashed_password):
     raise HTTPException(
       status_code=404,
       detail='Not found'
     )
   
-  token = auth.create_access_token(data={'sub': user.email})
+  token = short.create_access_token(data={'sub': user.email})
   return {'access_token': token, 'token_type': 'bearer'}
