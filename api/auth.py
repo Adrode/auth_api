@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from typing import Annotated
 from database import models
-from authentication import short
+from authentication import short, long
 from schemas import schemas
 from database.database import get_db
 
@@ -33,7 +33,7 @@ def register(
       detail="Bad request"
     )
   
-@router.post('/login', response_model=schemas.Token)
+@router.post('/login') # , response_model=schemas.Token
 def login(
   db: session_dependency,
   form_data: OAuth2PasswordRequestForm = Depends()
@@ -47,4 +47,21 @@ def login(
     )
   
   token = short.create_access_token(data={'sub': user.email})
-  return {'access_token': token, 'token_type': 'bearer'}
+  
+  try:
+    refresh_token = long.create_refresh_token()
+    new_refresh_token = models.RefreshToken(
+      hashed_token=refresh_token[1],
+      user_id=user.id,
+      expires_at=refresh_token[2]
+    )
+    db.add(new_refresh_token)
+    db.commit()
+    db.refresh(new_refresh_token)
+  except IntegrityError:
+    raise HTTPException(
+      status_code=400,
+      detail="Bad request"
+    )
+
+  return {'access_token': token, 'token_type': 'bearer', 'refresh_token': refresh_token[0]}

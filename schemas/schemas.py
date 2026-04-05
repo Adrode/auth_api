@@ -13,3 +13,10 @@ class User(BaseModel):
 class Token(BaseModel):
   access_token: str
   token_type: str
+
+class CreateRefreshToken(BaseModel):
+  hashed_token: str
+  user_id: int
+  expires_at: datetime
+  user_agent: str | None = None
+  ip_address: str | None = None
