@@ -1,6 +1,8 @@
 from dotenv import load_dotenv
 import os, hashlib, secrets
 from datetime import datetime, timedelta, timezone
+from sqlalchemy.orm import Session
+from database import models
 
 load_dotenv()
 SECRET_KEY = os.getenv('SECRET_KEY')
@@ -11,4 +13,8 @@ def create_refresh_token(): # refresh token może być losowym stringiem, nie mu
   token = secrets.token_urlsafe(64)
   hashed_token = hashlib.sha256(token.encode()).hexdigest()
   expires_at = datetime.now(timezone.utc) + timedelta(days=DAYS_TO_EXPIRE)
-  return token, hashed_token, expires_at
+  return {
+    'token': token,
+    'hashed_token': hashed_token,
+    'expires_at': expires_at
+  }

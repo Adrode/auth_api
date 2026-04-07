@@ -33,28 +33,33 @@ def register(
       detail="Bad request"
     )
   
-@router.post('/login') # , response_model=schemas.Token
+@router.post('/login', response_model=schemas.Token)
 def login(
   db: session_dependency,
   form_data: OAuth2PasswordRequestForm = Depends()
 ):
-  user = db.query(models.User).where(models.User.email == form_data.username).first()
-
-  if not user or not short.verify_password(form_data.password, user.hashed_password):
-    raise HTTPException(
-      status_code=404,
-      detail='Not found'
-    )
-  
-  token = short.create_access_token(data={'sub': user.email})
-  
   try:
+    user = db.query(models.User).where(models.User.email == form_data.username).first()
+    refresh_tokens = db.query(models.RefreshToken).where(models.RefreshToken.user_id == user.id).all()
+
+    if not user or not short.verify_password(form_data.password, user.hashed_password):
+      raise HTTPException(
+        status_code=404,
+        detail='Not found'
+      )
+    
+    token = short.create_access_token(data={'sub': user.email})
     refresh_token = long.create_refresh_token()
     new_refresh_token = models.RefreshToken(
-      hashed_token=refresh_token[1],
+      hashed_token=refresh_token['hashed_token'],
       user_id=user.id,
-      expires_at=refresh_token[2]
+      expires_at=refresh_token['expires_at']
     )
+    
+    if len(refresh_tokens) >= 5:
+      oldest_refresh_token = db.query(models.RefreshToken).where(models.RefreshToken.user_id == user.id).order_by(models.RefreshToken.created_at.asc()).first()
+      db.delete(oldest_refresh_token)
+      
     db.add(new_refresh_token)
     db.commit()
     db.refresh(new_refresh_token)
@@ -64,4 +69,4 @@ def login(
       detail="Bad request"
     )
 
-  return {'access_token': token, 'token_type': 'bearer', 'refresh_token': refresh_token[0]}
+  return {'access_token': token, 'token_type': 'bearer', 'refresh_token': refresh_token['token']}
