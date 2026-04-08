@@ -1,3 +1,4 @@
+import hashlib
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
@@ -44,8 +45,8 @@ def login(
 
     if not user or not short.verify_password(form_data.password, user.hashed_password):
       raise HTTPException(
-        status_code=404,
-        detail='Not found'
+        status_code=401,
+        detail='Not authorized'
       )
     
     token = short.create_access_token(data={'sub': user.email})
@@ -70,3 +71,18 @@ def login(
     )
 
   return {'access_token': token, 'token_type': 'bearer', 'refresh_token': refresh_token['token']}
+
+@router.post('/refresh')
+def refresh(db: session_dependency, token: str):
+  hashed = hashlib.sha256(token.encode()).hexdigest()
+
+  old_refresh_token = db.query(models.RefreshToken).where(models.RefreshToken.hashed_token == hashed).first()
+
+  if not old_refresh_token:
+    raise HTTPException(
+      status_code=404,
+      detail='Not found'
+    )
+  
+  db.delete(old_refresh_token)
+  new_refresh_token = long.create_refresh_token()['hashed_token']
