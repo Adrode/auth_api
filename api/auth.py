@@ -80,9 +80,17 @@ def refresh(db: session_dependency, token: str):
 
   if not old_refresh_token:
     raise HTTPException(
-      status_code=404,
-      detail='Not found'
+      status_code=401,
+      detail='Not authorized'
     )
-  
+
   db.delete(old_refresh_token)
-  new_refresh_token = long.create_refresh_token()['hashed_token']
+  refresh_token = long.create_refresh_token()
+  new_refresh_token = models.RefreshToken(
+    hashed_token=refresh_token['hashed_token'],
+    user_id=old_refresh_token.user_id,
+    expires_at=refresh_token['expires_at']
+  )
+  db.add(new_refresh_token)
+  db.commit()
+  return refresh_token['token']
