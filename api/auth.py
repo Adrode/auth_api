@@ -76,7 +76,7 @@ def login(
 
 @router.post('/refresh', response_model=schemas.Token)
 def refresh(db: session_dependency, data: schemas.RefreshToken):
-  hashed = hashlib.sha256(data.encode()).hexdigest()
+  hashed = hashlib.sha256(data.refresh_token.encode()).hexdigest()
 
   old_refresh_token = db.query(models.RefreshToken).where(models.RefreshToken.hashed_token == hashed).first()
 
@@ -114,3 +114,19 @@ def refresh(db: session_dependency, data: schemas.RefreshToken):
     'token_type': 'bearer',
     'refresh_token': refresh_token['token']
   }
+
+@router.post('/logout')
+def logout(db: session_dependency, data: schemas.RefreshToken):
+  hashed = hashlib.sha256(data.refresh_token.encode()).hexdigest()
+
+  old_refresh_token = db.query(models.RefreshToken).where(models.RefreshToken.hashed_token == hashed).first()
+
+  if not old_refresh_token:
+    raise HTTPException(
+      status_code=401,
+      detail='Not authorized'
+    )
+  
+  db.delete(old_refresh_token)
+  db.commit()
+  return True
