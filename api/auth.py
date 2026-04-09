@@ -8,6 +8,7 @@ from database import models
 from authentication import short, long
 from schemas import schemas
 from database.database import get_db
+from datetime import datetime, timezone
 
 router = APIRouter()
 
@@ -79,6 +80,14 @@ def refresh(db: session_dependency, token: str):
   old_refresh_token = db.query(models.RefreshToken).where(models.RefreshToken.hashed_token == hashed).first()
 
   if not old_refresh_token:
+    raise HTTPException(
+      status_code=401,
+      detail='Not authorized'
+    )
+
+  if not old_refresh_token.expires_at > datetime.now(timezone.utc):
+    db.delete(old_refresh_token)
+    db.commit()
     raise HTTPException(
       status_code=401,
       detail='Not authorized'
