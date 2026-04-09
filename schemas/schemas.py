@@ -21,3 +21,6 @@ class CreateRefreshToken(BaseModel):
   expires_at: datetime
   user_agent: str | None = None
   ip_address: str | None = None
+
+class RefreshToken(BaseModel):
+  refresh_token: str

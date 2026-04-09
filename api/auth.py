@@ -42,13 +42,14 @@ def login(
 ):
   try:
     user = db.query(models.User).where(models.User.email == form_data.username).first()
-    refresh_tokens = db.query(models.RefreshToken).where(models.RefreshToken.user_id == user.id).all()
-
+    
     if not user or not short.verify_password(form_data.password, user.hashed_password):
       raise HTTPException(
         status_code=401,
         detail='Not authorized'
       )
+    
+    count_refresh_tokens = db.query(models.RefreshToken).where(models.RefreshToken.user_id == user.id).count()
     
     token = short.create_access_token(data={'sub': user.email})
     refresh_token = long.create_refresh_token()
@@ -58,7 +59,7 @@ def login(
       expires_at=refresh_token['expires_at']
     )
     
-    if len(refresh_tokens) >= 5:
+    if count_refresh_tokens >= 5:
       oldest_refresh_token = db.query(models.RefreshToken).where(models.RefreshToken.user_id == user.id).order_by(models.RefreshToken.created_at.asc()).first()
       db.delete(oldest_refresh_token)
       
@@ -73,9 +74,9 @@ def login(
 
   return {'access_token': token, 'token_type': 'bearer', 'refresh_token': refresh_token['token']}
 
-@router.post('/refresh')
-def refresh(db: session_dependency, token: str):
-  hashed = hashlib.sha256(token.encode()).hexdigest()
+@router.post('/refresh', response_model=schemas.Token)
+def refresh(db: session_dependency, data: schemas.RefreshToken):
+  hashed = hashlib.sha256(data.encode()).hexdigest()
 
   old_refresh_token = db.query(models.RefreshToken).where(models.RefreshToken.hashed_token == hashed).first()
 
@@ -85,7 +86,7 @@ def refresh(db: session_dependency, token: str):
       detail='Not authorized'
     )
 
-  if not old_refresh_token.expires_at > datetime.now(timezone.utc):
+  if old_refresh_token.expires_at <= datetime.now(timezone.utc):
     db.delete(old_refresh_token)
     db.commit()
     raise HTTPException(
@@ -102,4 +103,14 @@ def refresh(db: session_dependency, token: str):
   )
   db.add(new_refresh_token)
   db.commit()
-  return refresh_token['token']
+  db.refresh(new_refresh_token)
+
+  user = db.query(models.User).where(models.User.id == old_refresh_token.user_id).first()
+
+  access_token = short.create_access_token(data={'sub': user.email})
+
+  return {
+    'access_token': access_token,
+    'token_type': 'bearer',
+    'refresh_token': refresh_token['token']
+  }
