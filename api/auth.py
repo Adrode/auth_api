@@ -75,7 +75,10 @@ def login(
   return {'access_token': token, 'token_type': 'bearer', 'refresh_token': refresh_token['token']}
 
 @router.post('/refresh', response_model=schemas.Token)
-def refresh(db: session_dependency, data: schemas.RefreshToken):
+def refresh(
+  db: session_dependency,
+  data: schemas.RefreshToken
+):
   hashed = hashlib.sha256(data.refresh_token.encode()).hexdigest()
 
   old_refresh_token = db.query(models.RefreshToken).where(models.RefreshToken.hashed_token == hashed).first()
@@ -128,5 +131,30 @@ def logout(db: session_dependency, data: schemas.RefreshToken):
     )
   
   db.delete(old_refresh_token)
+  db.commit()
+  return True
+
+@router.post('/logout_all')
+def logout_all(db: session_dependency, data: schemas.RefreshToken):
+  hashed = hashlib.sha256(data.refresh_token.encode()).hexdigest()
+
+  old_refresh_token = db.query(models.RefreshToken).where(models.RefreshToken.hashed_token == hashed).first()
+
+  if not old_refresh_token:
+    raise HTTPException(
+      status_code=401,
+      detail='Not authorized'
+    )
+  
+  all_refresh_tokens = db.query(models.RefreshToken).where(models.RefreshToken.user_id == old_refresh_token.user_id).all()
+
+  if not all_refresh_tokens:
+    raise HTTPException(
+      status_code=404,
+      detail='Not found'
+    )
+
+  for token in all_refresh_tokens:
+    db.delete(token)
   db.commit()
   return True
