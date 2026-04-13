@@ -1,6 +1,6 @@
-import hashlib
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.security import OAuth2PasswordRequestForm
+from typing import Annotated
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from typing import Annotated
@@ -14,8 +14,11 @@ router = APIRouter()
 
 session_dependency = Annotated[Session, Depends(get_db)]
 
-def hash_token(token: str):
-  return hashlib.sha256(token.encode()).hexdigest()
+auth_exception = HTTPException(
+  status_code=401,
+  detail='Not authorized',
+  headers={'WWW-Authenticate': 'Bearer'}
+)
 
 @router.post('/register', response_model=schemas.User)
 def register(
@@ -41,17 +44,14 @@ def register(
 @router.post('/login', response_model=schemas.Token)
 def login(
   db: session_dependency,
+  request: Request,
   form_data: OAuth2PasswordRequestForm = Depends()
 ):
   try:
     user = db.query(models.User).where(models.User.email == form_data.username).first()
     
     if not user or not short.verify_password(form_data.password, user.hashed_password):
-      raise HTTPException(
-        status_code=401,
-        detail='Not authorized',
-        headers={'WWW-Authenticate': 'Bearer'}
-      )
+      raise auth_exception
     
     count_refresh_tokens = db.query(models.RefreshToken).where(models.RefreshToken.user_id == user.id).count()
     
@@ -60,7 +60,9 @@ def login(
     new_refresh_token = models.RefreshToken(
       hashed_token=refresh_token['hashed_token'],
       user_id=user.id,
-      expires_at=refresh_token['expires_at']
+      expires_at=refresh_token['expires_at'],
+      user_agent=request.headers.get('user-agent'),
+      ip_address=request.client.host
     )
     
     if count_refresh_tokens >= 5:
@@ -81,18 +83,15 @@ def login(
 @router.post('/refresh', response_model=schemas.Token)
 def refresh(
   db: session_dependency,
-  data: schemas.RefreshToken
+  data: schemas.RefreshToken,
+  request: Request
 ):
-  hashed = hash_token(data.refresh_token)
+  hashed = long.hash_token(data.refresh_token)
 
   old_refresh_token = db.query(models.RefreshToken).where(models.RefreshToken.hashed_token == hashed).first()
 
   if not old_refresh_token:
-    raise HTTPException(
-      status_code=401,
-      detail='Not authorized',
-      headers={'WWW-Authenticate': 'Bearer'}
-    )
+    raise auth_exception
 
   if old_refresh_token.expires_at <= datetime.now(timezone.utc):
     db.delete(old_refresh_token)
@@ -102,13 +101,28 @@ def refresh(
       detail='Not authorized',
       headers={'WWW-Authenticate': 'Bearer'}
     )
+  
+  if old_refresh_token.user_agent != request.headers.get('user-agent'):
+    db.query(models.RefreshToken).where(models.RefreshToken.user_id == old_refresh_token.user_id).delete()
+    db.commit()
+
+    raise HTTPException(
+      status_code=401,
+      detail='Suspicious device',
+      headers={'WWW-Authenticate': 'Bearer'}
+    )
+  
+  if old_refresh_token.ip_address != request.client.host:
+    print(f'WARNING! IP mismatch for user {old_refresh_token.user_id}')
 
   db.delete(old_refresh_token)
   refresh_token = long.create_refresh_token()
   new_refresh_token = models.RefreshToken(
     hashed_token=refresh_token['hashed_token'],
     user_id=old_refresh_token.user_id,
-    expires_at=refresh_token['expires_at']
+    expires_at=refresh_token['expires_at'],
+    user_agent=request.headers.get('user-agent'),
+    ip_address=request.client.host
   )
   db.add(new_refresh_token)
   db.commit()
@@ -126,16 +140,12 @@ def refresh(
 
 @router.post('/logout')
 def logout(db: session_dependency, data: schemas.RefreshToken):
-  hashed = hash_token(data.refresh_token)
+  hashed = long.hash_token(data.refresh_token)
 
   old_refresh_token = db.query(models.RefreshToken).where(models.RefreshToken.hashed_token == hashed).first()
 
   if not old_refresh_token:
-    raise HTTPException(
-      status_code=401,
-      detail='Not authorized',
-      headers={'WWW-Authenticate': 'Bearer'}
-    )
+    raise auth_exception
   
   db.delete(old_refresh_token)
   db.commit()
@@ -143,16 +153,12 @@ def logout(db: session_dependency, data: schemas.RefreshToken):
 
 @router.post('/logout_all')
 def logout_all(db: session_dependency, data: schemas.RefreshToken):
-  hashed = hash_token(data.refresh_token)
+  hashed = long.hash_token(data.refresh_token)
 
   old_refresh_token = db.query(models.RefreshToken).where(models.RefreshToken.hashed_token == hashed).first()
 
   if not old_refresh_token:
-    raise HTTPException(
-      status_code=401,
-      detail='Not authorized',
-      headers={'WWW-Authenticate': 'Bearer'}
-    )
+    raise auth_exception
   
   all_refresh_tokens = db.query(models.RefreshToken).where(models.RefreshToken.user_id == old_refresh_token.user_id).all()
 
