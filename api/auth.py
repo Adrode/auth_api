@@ -49,7 +49,8 @@ def login(
     if not user or not short.verify_password(form_data.password, user.hashed_password):
       raise HTTPException(
         status_code=401,
-        detail='Not authorized'
+        detail='Not authorized',
+        headers={'WWW-Authenticate': 'Bearer'}
       )
     
     count_refresh_tokens = db.query(models.RefreshToken).where(models.RefreshToken.user_id == user.id).count()
@@ -89,7 +90,8 @@ def refresh(
   if not old_refresh_token:
     raise HTTPException(
       status_code=401,
-      detail='Not authorized'
+      detail='Not authorized',
+      headers={'WWW-Authenticate': 'Bearer'}
     )
 
   if old_refresh_token.expires_at <= datetime.now(timezone.utc):
@@ -97,7 +99,8 @@ def refresh(
     db.commit()
     raise HTTPException(
       status_code=401,
-      detail='Not authorized'
+      detail='Not authorized',
+      headers={'WWW-Authenticate': 'Bearer'}
     )
 
   db.delete(old_refresh_token)
@@ -130,7 +133,8 @@ def logout(db: session_dependency, data: schemas.RefreshToken):
   if not old_refresh_token:
     raise HTTPException(
       status_code=401,
-      detail='Not authorized'
+      detail='Not authorized',
+      headers={'WWW-Authenticate': 'Bearer'}
     )
   
   db.delete(old_refresh_token)
@@ -146,7 +150,8 @@ def logout_all(db: session_dependency, data: schemas.RefreshToken):
   if not old_refresh_token:
     raise HTTPException(
       status_code=401,
-      detail='Not authorized'
+      detail='Not authorized',
+      headers={'WWW-Authenticate': 'Bearer'}
     )
   
   all_refresh_tokens = db.query(models.RefreshToken).where(models.RefreshToken.user_id == old_refresh_token.user_id).all()
