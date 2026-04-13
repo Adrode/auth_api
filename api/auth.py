@@ -14,6 +14,9 @@ router = APIRouter()
 
 session_dependency = Annotated[Session, Depends(get_db)]
 
+def hash_token(token: str):
+  return hashlib.sha256(token.encode()).hexdigest()
+
 @router.post('/register', response_model=schemas.User)
 def register(
   data: schemas.CreateUser,
@@ -79,7 +82,7 @@ def refresh(
   db: session_dependency,
   data: schemas.RefreshToken
 ):
-  hashed = hashlib.sha256(data.refresh_token.encode()).hexdigest()
+  hashed = hash_token(data.refresh_token)
 
   old_refresh_token = db.query(models.RefreshToken).where(models.RefreshToken.hashed_token == hashed).first()
 
@@ -120,7 +123,7 @@ def refresh(
 
 @router.post('/logout')
 def logout(db: session_dependency, data: schemas.RefreshToken):
-  hashed = hashlib.sha256(data.refresh_token.encode()).hexdigest()
+  hashed = hash_token(data.refresh_token)
 
   old_refresh_token = db.query(models.RefreshToken).where(models.RefreshToken.hashed_token == hashed).first()
 
@@ -132,11 +135,11 @@ def logout(db: session_dependency, data: schemas.RefreshToken):
   
   db.delete(old_refresh_token)
   db.commit()
-  return True
+  return {'detail': 'Logged out'}
 
 @router.post('/logout_all')
 def logout_all(db: session_dependency, data: schemas.RefreshToken):
-  hashed = hashlib.sha256(data.refresh_token.encode()).hexdigest()
+  hashed = hash_token(data.refresh_token)
 
   old_refresh_token = db.query(models.RefreshToken).where(models.RefreshToken.hashed_token == hashed).first()
 
@@ -148,13 +151,7 @@ def logout_all(db: session_dependency, data: schemas.RefreshToken):
   
   all_refresh_tokens = db.query(models.RefreshToken).where(models.RefreshToken.user_id == old_refresh_token.user_id).all()
 
-  if not all_refresh_tokens:
-    raise HTTPException(
-      status_code=404,
-      detail='Not found'
-    )
-
   for token in all_refresh_tokens:
     db.delete(token)
   db.commit()
-  return True
+  return {'detail': 'Logged out'}
