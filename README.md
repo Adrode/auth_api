@@ -1,6 +1,6 @@
 # Auth API
 
-A lightweight authentication service built with FastAPI, PostgreSQL, and SQLAlchemy.
+Authentication service built with FastAPI, PostgreSQL, and SQLAlchemy. Uses JWT access tokens and refresh tokens.
 
 ## What this project does
 
