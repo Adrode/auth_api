@@ -1,185 +1,113 @@
-# Auth API
+# 🔐 Auth API
 
-Authentication service built with FastAPI, PostgreSQL, and SQLAlchemy. Uses JWT access tokens and refresh tokens.
+Auth API is a backend authentication service built with FastAPI, PostgreSQL, and SQLAlchemy.  
+It implements secure JWT-based authentication with refresh token rotation and multi-device session control.
 
-## What this project does
+The project focuses on production-style authentication patterns, including token revocation, session limits, and secure refresh flows.
 
-- Registers users with email/password
-- Issues JWT access tokens
-- Handles refresh tokens with a limit of 5 active refresh tokens per user
-- Supports logging out a single refresh token and logging out from all devices
-- Provides protected endpoints secured with Bearer JWT
+---
 
-## Architecture
+## 🚀 Key Features
 
-- `main.py` - FastAPI application entry point
-- `api/auth.py` - endpoints for registration, login, token refresh, and logout
-- `api/users.py` - endpoint for the currently authenticated user
-- `database/models.py` - SQLAlchemy models: `User` and `RefreshToken`
-- `database/database.py` - PostgreSQL connection setup and database initialization
-- `authentication/short.py` - JWT handling and authentication helper functions
-- `authentication/long.py` - refresh token generation and hashing
-- `schemas/schemas.py` - Pydantic models for request and response schemas
+- User registration with email and password
+- JWT access tokens (short-lived)
+- Refresh token system with rotation
+- Limit of 5 active refresh tokens per user
+- Logout from single device (token revocation)
+- Logout from all devices (global session invalidation)
+- Secure authentication via Bearer tokens
+- Refresh token hashing and validation
+- Suspicious refresh detection (invalidates all sessions)
 
-## Requirements
+---
+
+## 🧠 Domain Model Overview
+```text
+User
+└── RefreshToken
+```
+### Core relationships
+
+- **User → RefreshToken**
+  - Each user can have multiple active refresh tokens
+  - Maximum of 5 active tokens per user
+  - Tokens are stored and validated server-side
+
+## 🧱 Tech Stack
 
 - Python 3.12
-- PostgreSQL 17 (can be run locally or with `docker-compose`)
-- Python dependencies:
-  - `fastapi`
-  - `uvicorn`
-  - `sqlalchemy`
-  - `psycopg2-binary`
-  - `python-dotenv`
-  - `python-jose`
-  - `pwdlib`
-  - `passlib`
-  - `email-validator`
+- FastAPI
+- SQLAlchemy ORM
+- PostgreSQL 17
+- Alembic
+- JWT (python-jose)
+- passlib / pwdlib
+- python-dotenv
+- uvicorn
 
-## Environment setup
+## 🔐 Authentication Design
 
-1. Activate the virtual environment:
+- Access tokens expire after 15 minutes
+- Refresh tokens expire after 7 days
+- Refresh tokens are hashed before storage
+- Rotation: every refresh issues a new pair of tokens
+- Device/session tracking via refresh tokens
+- Security mechanism detects suspicious refresh attempts and invalidates all sessions
 
+## 📡 API Overview
+
+### Auth
+- POST `/auth/register` — Register user
+- POST `/auth/login` — Login user (returns access + refresh tokens)
+- POST `/auth/refresh` — Refresh tokens
+- POST `/auth/logout` — Revoke single session
+- POST `/auth/logout_all` — Revoke all sessions
+
+### Users
+- GET `/users/me` — Get current authenticated user
+
+## ⚙️ Setup & Run
+### 1. Create and activate the virtual environment
 ```bash
 source env/bin/activate
 ```
 
-2. Install dependencies (if not installed yet):
-
+### 2. Start PostgreSQL (Docker)
 ```bash
-pip install fastapi uvicorn sqlalchemy psycopg2-binary python-dotenv python-jose pwdlib passlib email-validator
+docker-compose up -d
 ```
 
-3. Create a `.env` file in the project root with the following values:
-
+### 3. Environment variables
+Create a `.env` file or export variables:
 ```env
 SECRET_KEY=YourJWTSecretKey
 ALGORITHM=HS256
 ```
 
-> The database connection is currently configured directly in `database/database.py` as:
-> `postgresql+psycopg2://auth_api_user:auth_api_passwd@localhost:5432/auth_api_db`
-
-## Running the database
-
-Use `docker-compose` to start PostgreSQL:
-
+### 4. Run migrations
 ```bash
-docker-compose up -d
+alembic upgrade head
 ```
 
-Docker Compose settings from `docker-compose.yml`:
-
-- user: `auth_api_user`
-- password: `auth_api_passwd`
-- database: `auth_api_db`
-- port: `5432`
-
-## Running the application
-
+### 5. Run application
 ```bash
 uvicorn main:app --reload
 ```
 
-The application will be available at:
+App URLs:
 
-- `http://127.0.0.1:8000`
-- Swagger UI: `http://127.0.0.1:8000/docs`
+- http://127.0.0.1:8000
+- http://127.0.0.1:8000/docs
 
-## Endpoints
+## 🧩 Architecture Notes
+- Short-lived access tokens + long-lived refresh tokens
+- Stateless authentication with server-side session control
+- Secure refresh rotation system
+- Database-backed token revocation system
 
-### Register
-
-`POST /auth/register`
-
-Request body:
-
-```json
-{
-  "email": "user@example.com",
-  "password": "SuperSecretPassword"
-}
-```
-
-### Login
-
-`POST /auth/login`
-
-Form data (`application/x-www-form-urlencoded`):
-
-- `username` - user email
-- `password` - password
-
-Response:
-
-```json
-{
-  "access_token": "...",
-  "token_type": "bearer",
-  "refresh_token": "..."
-}
-```
-
-### Refresh token
-
-`POST /auth/refresh`
-
-Request body:
-
-```json
-{
-  "refresh_token": "..."
-}
-```
-
-Response returns a new `access_token` and a new `refresh_token`.
-
-### Logout single token
-
-`POST /auth/logout`
-
-Request body:
-
-```json
-{
-  "refresh_token": "..."
-}
-```
-
-### Logout from all devices
-
-`POST /auth/logout_all`
-
-Request body:
-
-```json
-{
-  "refresh_token": "..."
-}
-```
-
-### Get current user
-
-`GET /users/me`
-
-Header:
-
-```http
-Authorization: Bearer <access_token>
-```
-
-## Notes
-
-- The active refresh token limit per user is `5`. When the limit is exceeded, the oldest token is removed.
-- Refresh token renewal validates `user-agent`; suspicious refresh attempts remove all tokens and return an error.
-- Access tokens expire after `15` minutes, refresh tokens expire after `7` days.
-
-## Extensions
-
-The project includes `auth_api_migrations` with Alembic configuration, which can be used later to manage database migrations.
-
----
-
-## Contact
-
-If you want, I can also add a section with sample `curl` commands, database schema details, or Docker-based startup automation.
+## 🧠 What This Project Demonstrates
+- Production-grade authentication design
+- JWT + refresh token architecture
+- Session management across multiple devices
+- Secure token storage strategies
+- Backend security best practices in FastAPI
