@@ -27,10 +27,20 @@ def test_register_email_not_unique(client, test_first_user):
   response = client.post(
     "/auth/register",
     json={
-      "email": "adrianwo@gmail.com",
+      "email": test_first_user.email,
       "password": hash_password("foo")
     }
   )
 
   assert response.status_code == 400
 
+def test_login_valid_data(client, test_first_user):
+  response = client.post(
+    "/auth/login",
+    data={
+      "username": test_first_user.email,
+      "password": test_first_user.plain_password
+    }
+  )
+
+  assert response.status_code == 200
