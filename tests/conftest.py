@@ -53,7 +53,7 @@ def test_first_user(db_session):
   password = "kekw"
 
   user = User(
-    email="adrianwozniak20@gmail.com",
+    email="adrianwo@gmail.com",
     hashed_password=hash_password(password)
   )
 
