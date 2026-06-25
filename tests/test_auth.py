@@ -44,3 +44,15 @@ def test_login_valid_data(client, test_first_user):
   )
 
   assert response.status_code == 200
+  assert "access_token" and "refresh_token" in response.json()
+
+def test_login_user_does_not_exits(client):
+  response = client.post(
+    "/auth/login",
+    data={
+      "username": "kekw@gmail.com",
+      "password": 123
+    }
+  )
+
+  assert response.status_code == 401
