@@ -93,7 +93,10 @@ def refresh(
   if not old_refresh_token:
     raise auth_exception
 
-  if old_refresh_token.expires_at <= datetime.now(timezone.utc):
+  expires_at = old_refresh_token.expires_at
+  if expires_at.tzinfo is None:
+    expires_at = expires_at.replace(tzinfo=timezone.utc)
+  if expires_at <= datetime.now(timezone.utc):
     db.delete(old_refresh_token)
     db.commit()
     raise HTTPException(
