@@ -1,3 +1,5 @@
+from sqlalchemy import select, func
+from database import models
 from authentication.short import hash_password
 
 def test_register_valid_data(client):
@@ -46,7 +48,7 @@ def test_login_valid_data(client, test_first_user):
   assert response.status_code == 200
   assert "access_token" and "refresh_token" in response.json()
 
-def test_login_user_does_not_exits(client):
+def test_login_invalid_user(client):
   response = client.post(
     "/auth/login",
     data={
@@ -56,6 +58,33 @@ def test_login_user_does_not_exits(client):
   )
 
   assert response.status_code == 401
+
+def test_login_5_refresh_tokens(client, test_first_user, db_session):
+  i = 6
+  while i > 0:
+    client.post(
+      "/auth/login",
+      data={
+        "username": test_first_user.email,
+        "password": test_first_user.plain_password
+      }
+    )
+    i -= 1
+
+  response = client.post(
+      "/auth/login",
+      data={
+        "username": test_first_user.email,
+        "password": test_first_user.plain_password
+      }
+    )
+
+  count_refresh_tokens = db_session.scalar(
+    select(func.count(models.RefreshToken.id)).where(models.RefreshToken.user_id == test_first_user.id)
+  )
+
+  assert response.status_code == 200
+  assert count_refresh_tokens <= 5
 
 def test_refresh_valid_data(client, test_first_user):
   login = client.post(
