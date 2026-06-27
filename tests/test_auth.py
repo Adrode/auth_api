@@ -104,3 +104,35 @@ def test_refresh_valid_data(client, test_first_user):
 
   assert response.status_code == 200
   assert response.json()["refresh_token"] != login.json()["refresh_token"]
+
+def test_refresh_invalid_old_token(client):
+  response = client.post(
+    "/auth/refresh",
+    json={
+      "refresh_token": "kekw"
+    }
+  )
+
+  assert response.status_code == 401
+
+def test_refresh_user_agent_mismatch(client, test_first_user):
+  login = client.post(
+    "/auth/login",
+    headers={
+      "User-Agent": "MyUserAgentKEKW",
+    },
+    data={
+      "username": test_first_user.email,
+      "password": test_first_user.plain_password
+    }
+  )
+
+  response = client.post(
+    "/auth/refresh",
+    json={
+      "refresh_token": login.json()["refresh_token"]
+    }
+  )
+
+  assert response.status_code == 200
+  assert response.json()["warnings"]["user-agent"] == "Suspicious device"

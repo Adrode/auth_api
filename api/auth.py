@@ -105,18 +105,11 @@ def refresh(
       headers={'WWW-Authenticate': 'Bearer'}
     )
   
+  warnings = {}
   if old_refresh_token.user_agent != request.headers.get('user-agent'):
-    db.query(models.RefreshToken).where(models.RefreshToken.user_id == old_refresh_token.user_id).delete()
-    db.commit()
-
-    raise HTTPException(
-      status_code=401,
-      detail='Suspicious device',
-      headers={'WWW-Authenticate': 'Bearer'}
-    )
-  
+    warnings.update({'user-agent': 'Suspicious device'})
   if old_refresh_token.ip_address != request.client.host:
-    print(f'WARNING! IP mismatch for user {old_refresh_token.user_id}')
+    warnings.update({'ip-mismatch': f'IP mismatch for user {old_refresh_token.user_id}'})
 
   db.delete(old_refresh_token)
   refresh_token = long.create_refresh_token()
@@ -135,11 +128,16 @@ def refresh(
 
   access_token = short.create_access_token(data={'sub': user.email})
 
-  return {
+  response = {
     'access_token': access_token,
     'token_type': 'bearer',
-    'refresh_token': refresh_token['token']
+    'refresh_token': refresh_token['token'],
   }
+
+  if warnings:
+    response.update({'warnings': warnings})
+
+  return response
 
 @router.post('/logout')
 def logout(db: session_dependency, data: schemas.RefreshToken):

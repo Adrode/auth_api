@@ -14,6 +14,7 @@ class Token(BaseModel):
   access_token: str
   token_type: str
   refresh_token: str
+  warnings: dict | None = None
 
 class CreateRefreshToken(BaseModel):
   hashed_token: str
