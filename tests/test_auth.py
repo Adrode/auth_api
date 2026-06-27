@@ -165,3 +165,53 @@ def test_logout_invalid_old_token(client):
   )
 
   assert response.status_code == 401
+
+def test_logout_all_valid_data(client, test_first_user, db_session):
+  i = 3
+  while i > 0:
+    client.post(
+      "/auth/login",
+      headers={
+        "User-Agent": f"kekw{i}"
+      },
+      data={
+        "username": test_first_user.email,
+        "password": test_first_user.plain_password
+      }
+    )
+    i -= 1
+
+  login = client.post(
+      "/auth/login",
+      headers={
+        "User-Agent": "kekw0"
+      },
+      data={
+        "username": test_first_user.email,
+        "password": test_first_user.plain_password
+      }
+    )
+
+  response = client.post(
+    "/auth/logout_all",
+    json={
+      "refresh_token": login.json()["refresh_token"]
+    }
+  )
+
+  all_refresh_tokens = db_session.scalars(
+    select(models.RefreshToken).where(models.RefreshToken.user_id == test_first_user.id)
+  ).all()
+
+  assert response.status_code == 200
+  assert all_refresh_tokens == []
+
+def test_logout_all_invalid_old_token(client):
+  response = client.post(
+    "/auth/logout_all",
+    json={
+      "refresh_token": "kekw"
+    }
+  )
+
+  assert response.status_code == 401
