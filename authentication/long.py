@@ -10,10 +10,10 @@ DAYS_TO_EXPIRE = 7
 def hash_token(token: str):
   return hashlib.sha256(token.encode()).hexdigest()
 
-def create_refresh_token():
+def create_refresh_token(expire_days=DAYS_TO_EXPIRE):
   token = secrets.token_urlsafe(64)
   hashed_token = hash_token(token=token)
-  expires_at = datetime.now(timezone.utc) + timedelta(days=DAYS_TO_EXPIRE)
+  expires_at = datetime.now(timezone.utc) + timedelta(days=expire_days)
   return {
     'token': token,
     'hashed_token': hashed_token,
