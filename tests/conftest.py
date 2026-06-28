@@ -7,6 +7,7 @@ from database.database import get_db
 from database.models import Base, User
 from authentication.short import hash_password
 
+
 engine = create_engine(
   "sqlite:///:memory:",
   connect_args={"check_same_thread": False},
