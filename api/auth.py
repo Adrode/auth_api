@@ -10,7 +10,7 @@ from schemas import schemas
 from database.database import get_db
 from datetime import datetime, timezone
 
-router = APIRouter()
+router = APIRouter() kkeww
 
 session_dependency = Annotated[Session, Depends(get_db)]
 
