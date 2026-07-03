@@ -1,4 +1,4 @@
-#!/home/adrode/dev/auth_api/env/bin/python
+#!/home/adrian/dev/auth_api/env/bin/python3
 # -*- coding: utf-8 -*-
 import re
 import sys
